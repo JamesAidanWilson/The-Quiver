@@ -851,11 +851,11 @@ def Int_MonteCarlo(f,a,b,N):
     return I
 
 
-# NUMERICAL 1ST ORDER DIFFERENTIAL EQUATION SOLVER
+### --- NUMERICAL 1ST ORDER DIFFERENTIAL EQUATION SOLVER --- ###
 
 # EULER METHOD (FORWARD)
 
-def euler_forward(f, x_0, y_0, x_max, h):
+def Euler_FOW(f, x_0, y_0, x_max, h):
     
     y = y_0; x = x_0
     X = [x_0]; Y = [y_0]
@@ -902,6 +902,73 @@ def RK4(f, x_0, y_0, x_range, h):
 
     return X, Y
 
+# SHOOTING METHOD
+
+def shooting_method(
+    f, root1, root2, ode_integrator="rk4", iteration_limit=10, h=0.01, diff=False):
+
+    if ode_integrator == "rk4":
+        ode_solve = RK4
+    elif ode_integrator == "euler":
+        ode_solve = Euler_FOW
+    iteration_count = 0
+    guess1 = [root1[0], 1]
+    guess2 = [root1[0], -1]
+    if root2[1] != 0:
+        Y = [0]
+    else:
+        Y = [1]
+    X = [0]
+    while (
+        abs(Y[-1] - root2[1]) >= 10 ** -13
+        and iteration_count < iteration_limit
+    ):
+        if iteration_count == 0:
+            guess = guess1.copy()
+        elif iteration_count == 1:
+            guess1.append(Y[-1])
+            guess = guess2.copy()
+        else:
+            if iteration_count == 2:
+                guess2.append(Y[-1])
+            else:
+                guess1[2] = Y[-1]
+            # generating new guess
+            guess = guess1[1] + (guess2[1] - guess1[1]) * (
+                root2[1] - guess1[2]
+            ) / (guess2[2] - guess1[2])
+            guess1[1] = guess
+            guess = guess1
+        X, Z = ode_solve(
+            f,
+            (guess[0] - h, root2[0] + h),
+            (guess[0], guess[1]),
+            h=h / 2,
+        )
+        X = list(map(lambda x: round(x, 6), X))
+
+        def dy_dx(x, y):
+            return Z[X.index(round(x, 6))]
+
+        X, Y = ode_solve(dy_dx, (guess[0], root2[0]), root1, h=h)
+        iteration_count += 1
+    if diff:
+        return X, Y, dy_dx
+    else:
+        return X, Y
+
+
+### --- GRAPH FITTING --- ###
+
+# LINEAR FITTING
+
+def linear_fit(X, Y):
+    # y = mx + c, len(X) = len(Y) is assumed
+    x_mean = sum(X) / len(X)
+    y_mean = sum(Y) / len(Y)
+    m = sum((X[i] - x_mean) * (Y[i] - y_mean) for i in range(len(X))) / sum((X[i] - x_mean) ** 2 for i in range(len(X)))
+    c = y_mean - m * x_mean
+    return c, m
 
 
 
